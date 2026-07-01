@@ -9,7 +9,7 @@ export function IOSNavBar({ title, largeTitle = false, rightAction, leftAction }
   return (
     <header
       className="flex-shrink-0 bg-[var(--ios-bg)] border-b border-[var(--ios-separator)]"
-      style={{ paddingTop: 'var(--safe-area-top)' }}
+      style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}
     >
       {/* Standard height nav bar */}
       <div
