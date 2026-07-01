@@ -1,0 +1,117 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: '签名类型'
+        required: true
+        type: choice
+        default: 'development'
+        options:
+          - development
+          - ad-hoc
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v2
+        with:
+          ruby-version: '3.3'
+
+      - name: Install fastlane
+        run: gem install fastlane -NV
+
+      # ============ Frontend Build ============
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: npm run build
+
+      # ============ Capacitor Sync ============
+      - name: Sync Capacitor
+        working-directory: frontend
+        run: npx cap sync ios
+
+      # ============ Code Signing Setup ============
+      - name: Create Keychain
+        run: |
+          security create-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+
+      - name: Import Code Signing Certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DEVELOPMENT_CERT_BASE64 }}
+          p12-password: ${{ secrets.IOS_CERT_PASSWORD }}
+          keychain: build.keychain
+          keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
+
+      - name: Install Provisioning Profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+
+      # ============ Build IPA ============
+      - name: Set Build Number
+        run: |
+          BUILD_NUM=$(date +%Y%m%d%H%M)
+          echo "BUILD_NUMBER=$BUILD_NUM" >> $GITHUB_ENV
+
+      - name: Build iOS Archive
+        working-directory: frontend/ios/App
+        run: |
+          xcodebuild archive \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath ${{ runner.temp }}/App.xcarchive \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY }}" \
+            PROVISIONING_PROFILE_SPECIFIER="${{ secrets.PROVISIONING_PROFILE_SPECIFIER }}" \
+            DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM }}" \
+            CURRENT_PROJECT_VERSION=${{ env.BUILD_NUMBER }}
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath ${{ runner.temp }}/App.xcarchive \
+            -exportPath ${{ runner.temp }}/export \
+            -exportOptionsPlist .github/build/exportOptions-${{ inputs.build_type }}.plist
+
+      # ============ Upload ============
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CS面试助手-${{ inputs.build_type }}-${{ env.BUILD_NUMBER }}
+          path: ${{ runner.temp }}/export/*.ipa
+          retention-days: 7
+
+      - name: Upload DSYM (for crash analysis)
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: dSYMs-${{ env.BUILD_NUMBER }}
+          path: ${{ runner.temp }}/App.xcarchive/dSYMs
+          retention-days: 7
