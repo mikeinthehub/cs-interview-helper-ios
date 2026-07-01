@@ -20,7 +20,7 @@ export function IOSTabBar() {
   return (
     <nav
       className="flex-shrink-0 flex items-stretch bg-[var(--ios-bg-elevated)] border-t border-[var(--ios-separator)]"
-      style={{ paddingBottom: 'var(--safe-area-bottom)', height: 'var(--tab-bar-height)' }}
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0px)', minHeight: '50px' }}
     >
       {TABS.map((tab) => {
         const isActive = location.pathname === tab.path || (tab.path === '/setup' && location.pathname === '/');
