@@ -38,20 +38,47 @@ jobs:
           BUILD_NUM=$(date +%Y%m%d%H%M)
           echo "BUILD_NUMBER=$BUILD_NUM" >> $GITHUB_ENV
 
+      - name: Diagnose iOS Structure
+        working-directory: frontend/ios/App
+        run: |
+          echo "=== Directory listing ==="
+          ls -la
+          echo "=== Looking for workspace ==="
+          find . -name "*.xcworkspace" -type d 2>/dev/null || echo "No workspace found"
+          echo "=== Looking for project ==="
+          find . -name "*.xcodeproj" -type d 2>/dev/null || echo "No project found"
+          echo "=== Schemes ==="
+          xcodebuild -list 2>/dev/null || echo "xcodebuild -list failed"
+
       - name: Build Unsigned Archive
         working-directory: frontend/ios/App
         run: |
-          xcodebuild archive \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -sdk iphoneos \
-            -configuration Release \
-            -archivePath ${{ runner.temp }}/App.xcarchive \
-            -destination 'generic/platform=iOS' \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            CURRENT_PROJECT_VERSION=${{ env.BUILD_NUMBER }}
+          # Try workspace first (Capacitor 6+), fall back to project
+          if [ -f App.xcworkspace/contents.xcworkspacedata ]; then
+            xcodebuild archive \
+              -workspace App.xcworkspace \
+              -scheme App \
+              -sdk iphoneos \
+              -configuration Release \
+              -archivePath ${{ runner.temp }}/App.xcarchive \
+              -destination 'generic/platform=iOS' \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGNING_ALLOWED=NO \
+              CURRENT_PROJECT_VERSION=${{ env.BUILD_NUMBER }}
+          else
+            xcodebuild archive \
+              -project App.xcodeproj \
+              -scheme App \
+              -sdk iphoneos \
+              -configuration Release \
+              -archivePath ${{ runner.temp }}/App.xcarchive \
+              -destination 'generic/platform=iOS' \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGNING_ALLOWED=NO \
+              CURRENT_PROJECT_VERSION=${{ env.BUILD_NUMBER }}
+          fi
 
       - name: Create Unsigned IPA
         run: |
