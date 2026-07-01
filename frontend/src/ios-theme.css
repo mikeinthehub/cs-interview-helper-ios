@@ -1,0 +1,138 @@
+/* iOS Design Tokens */
+:root {
+  /* iOS System Colors - Light */
+  --ios-blue: #007AFF;
+  --ios-green: #34C759;
+  --ios-orange: #FF9500;
+  --ios-red: #FF3B30;
+  --ios-purple: #AF52DE;
+  --ios-pink: #FF2D55;
+  --ios-teal: #5AC8FA;
+  --ios-indigo: #5856D6;
+
+  --ios-bg: #F2F2F7;
+  --ios-bg-elevated: #FFFFFF;
+  --ios-bg-grouped: #F2F2F7;
+  --ios-separator: rgba(60, 60, 67, 0.12);
+  --ios-separator-opaque: #C6C6C8;
+  --ios-label: #000000;
+  --ios-label-secondary: rgba(60, 60, 67, 0.6);
+  --ios-label-tertiary: rgba(60, 60, 67, 0.3);
+  --ios-fill: rgba(120, 120, 128, 0.12);
+
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --tab-bar-height: calc(50px + var(--safe-area-bottom));
+  --nav-bar-height: 44px;
+
+  --font-ios: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'PingFang SC', 'Helvetica Neue', sans-serif;
+  --font-ios-mono: 'SF Mono', 'Menlo', 'Monaco', monospace;
+
+  --radius-ios: 12px;
+  --radius-ios-sm: 8px;
+  --radius-ios-lg: 20px;
+  --radius-ios-xl: 24px;
+}
+
+/* iOS Dark Mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ios-bg: #000000;
+    --ios-bg-elevated: #1C1C1E;
+    --ios-bg-grouped: #000000;
+    --ios-separator: rgba(84, 84, 88, 0.6);
+    --ios-separator-opaque: #38383A;
+    --ios-label: #FFFFFF;
+    --ios-label-secondary: rgba(235, 235, 245, 0.6);
+    --ios-label-tertiary: rgba(235, 235, 245, 0.3);
+    --ios-fill: rgba(120, 120, 128, 0.24);
+  }
+}
+
+/* Force dark mode when class is set */
+:root.ios-dark {
+  --ios-bg: #000000;
+  --ios-bg-elevated: #1C1C1E;
+  --ios-bg-grouped: #000000;
+  --ios-separator: rgba(84, 84, 88, 0.6);
+  --ios-separator-opaque: #38383A;
+  --ios-label: #FFFFFF;
+  --ios-label-secondary: rgba(235, 235, 245, 0.6);
+  --ios-label-tertiary: rgba(235, 235, 245, 0.3);
+  --ios-fill: rgba(120, 120, 128, 0.24);
+}
+
+/* Base iOS styles */
+html {
+  font-family: var(--font-ios);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--ios-bg);
+  color: var(--ios-label);
+  overflow: hidden;
+  height: 100%;
+  /* Prevent pull-to-refresh on PWA */
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* Disable text selection for app-like feel */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection in inputs and chat */
+input, textarea, .selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* iOS-style scrollbar (hidden) */
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* iOS spring animation */
+@keyframes ios-spring {
+  0% { transform: scale(0.92); opacity: 0; }
+  60% { transform: scale(1.02); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-ios-spring {
+  animation: ios-spring 0.35s cubic-bezier(0.25, 0.1, 0.25, 1.0);
+}
+
+/* Tab bar active indicator bounce */
+@keyframes tab-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+.tab-active { animation: tab-bounce 0.2s ease-out; }
+
+/* Message bubble animations */
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.msg-enter { animation: msg-in 0.25s cubic-bezier(0.25, 0.1, 0.25, 1.0); }
+
+/* Skeleton loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--ios-fill) 25%, transparent 50%, var(--ios-fill) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-ios-sm);
+}
