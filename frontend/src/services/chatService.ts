@@ -3,7 +3,7 @@
  * Replaces: anthropic_client.py + chat_service.py + all Python scripts.
  */
 
-import { loadData } from './dataLoader';
+import { getSkillMd } from './dataLoader';
 import {
   saveSession, configureSession, recordAnswer, skipQuestion,
   hintQuestion, pauseInterview, continueInterview, generateReport,
@@ -19,15 +19,6 @@ const API_BASE = isNative
   ? 'https://api.deepseek.com/anthropic'
   : '/api/deepseek/anthropic';
 const MODEL = 'deepseek-v4-pro[1m]';
-
-let SKILL_MD_CACHE = '';
-
-async function getSkillMd(): Promise<string> {
-  if (!SKILL_MD_CACHE) {
-    SKILL_MD_CACHE = await loadData<string>('SKILL.md');
-  }
-  return SKILL_MD_CACHE;
-}
 
 // ========== Tool Definitions (same logic as Python scripts, executed locally) ==========
 
