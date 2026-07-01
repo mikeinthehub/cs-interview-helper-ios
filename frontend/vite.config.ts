@@ -6,7 +6,23 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
-    // No proxy needed — app is self-contained
+    proxy: {
+      '/api/deepseek': {
+        target: 'https://api.deepseek.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/deepseek/, ''),
+      },
+    },
+  },
+  preview: {
+    port: 5173,
+    proxy: {
+      '/api/deepseek': {
+        target: 'https://api.deepseek.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/deepseek/, ''),
+      },
+    },
   },
   build: {
     outDir: 'dist',
