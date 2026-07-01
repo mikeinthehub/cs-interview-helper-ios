@@ -1,0 +1,64 @@
+name: Generate Signing Certificate
+
+# 这个 workflow 在 GitHub 的 macOS 虚拟机上帮你生成代码签名证书。
+# 不需要你自己的 Mac！
+
+on:
+  workflow_dispatch:
+    inputs:
+      apple_id_email:
+        description: '你的 Apple ID 邮箱'
+        required: true
+        type: string
+      your_name:
+        description: '你的全名（拼音）'
+        required: true
+        type: string
+      cert_password:
+        description: '证书密码（请记住它）'
+        required: true
+        type: string
+        default: 'csinterview123'
+
+jobs:
+  generate:
+    runs-on: macos-15
+    timeout-minutes: 10
+
+    steps:
+      - name: Generate CSR and Private Key
+        run: |
+          openssl genrsa -out ios_dev.key 2048
+          openssl req -new -key ios_dev.key -out ios_dev.csr \
+            -subj "/emailAddress=${{ inputs.apple_id_email }}/CN=${{ inputs.your_name }}/C=CN"
+
+      - name: Upload CSR (send to Apple Developer)
+        uses: actions/upload-artifact@v4
+        with:
+          name: 1-CSR文件-上传到Apple-Developer
+          path: ios_dev.csr
+          retention-days: 1
+
+      - name: Upload Private Key (keep safe!)
+        uses: actions/upload-artifact@v4
+        with:
+          name: 2-私钥-请妥善保管勿分享
+          path: ios_dev.key
+          retention-days: 1
+
+      - name: Instructions
+        run: |
+          echo ""
+          echo "========================================="
+          echo "  CSR 已生成，请下载 Artifact"
+          echo "========================================="
+          echo ""
+          echo "下一步："
+          echo "1. 下载 '1-CSR文件' artifact"
+          echo "2. 打开 https://developer.apple.com/account"
+          echo "3. Certificates → + → Apple Development"
+          echo "4. 上传 ios_dev.csr"
+          echo "5. 下载 .cer 文件"
+          echo "6. 重新触发 generate-cert-from-cer workflow"
+          echo "   把 .cer 文件作为输入上传"
+          echo ""
