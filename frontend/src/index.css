@@ -1,0 +1,47 @@
+@import "tailwindcss";
+@import "./ios-theme.css";
+
+@theme {
+  --color-surface: var(--ios-bg-elevated);
+  --color-surface-alt: var(--ios-bg);
+  --color-surface-hover: var(--ios-fill);
+  --color-border: var(--ios-separator);
+  --color-text: var(--ios-label);
+  --color-text-secondary: var(--ios-label-secondary);
+  --color-text-muted: var(--ios-label-tertiary);
+
+  --color-primary-50: #e8f2ff;
+  --color-primary-100: #d0e6ff;
+  --color-primary-200: #a0ccff;
+  --color-primary-300: #70b3ff;
+  --color-primary-400: #4099ff;
+  --color-primary-500: #007AFF;
+  --color-primary-600: #0062cc;
+  --color-primary-700: #004999;
+  --color-primary-800: #003166;
+  --color-primary-900: #001833;
+
+  --color-accent-400: #FF9500;
+  --color-accent-500: #FF9500;
+
+  --font-sans: var(--font-ios);
+  --font-mono: var(--font-ios-mono);
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+}
+
+h1, h2, h3, h4 { font-family: var(--font-ios); }
+
+input[type="text"], input[type="search"], input[type="email"], textarea, select {
+  font-family: var(--font-ios);
+  font-size: 16px;
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+
+button {
+  font-family: var(--font-ios);
+  -webkit-appearance: none;
+  appearance: none;
+}
