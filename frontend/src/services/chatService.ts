@@ -13,7 +13,11 @@ import type { SessionState } from '../types/session';
 // ========== DeepSeek API ==========
 
 const API_KEY = 'sk-6397c0f9ee564435928af0b8052aaae2';
-const API_BASE = 'https://api.deepseek.com/anthropic';
+// Use proxy in browser (CORS), direct in native Capacitor WebView
+const isNative = typeof (window as unknown as Record<string, unknown>).Capacitor !== 'undefined';
+const API_BASE = isNative
+  ? 'https://api.deepseek.com/anthropic'
+  : '/api/deepseek/anthropic';
 const MODEL = 'deepseek-v4-pro[1m]';
 
 let SKILL_MD_CACHE = '';
