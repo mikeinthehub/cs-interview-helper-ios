@@ -1,8 +1,9 @@
 import { useSessionStore } from '../../store/sessionStore';
+import { useChatStore } from '../../store/chatStore';
+import { streamChat } from '../../services/chatService';
+import { generateId } from '../../utils/formatters';
 import { Card, CardHeader } from '../shared/Card';
 import { Button } from '../shared/Button';
-import { api } from '../../api/client';
-import { toast } from '../shared/Toast';
 
 interface CommandDef {
   label: string;
@@ -33,32 +34,41 @@ const COMMANDS_BY_STATUS: Record<string, CommandDef[]> = {
 };
 
 export function CommandPanel() {
-  const sessionId = useSessionStore((s) => s.sessionId);
-  const runtimeStatus = useSessionStore((s) => s.sessionState?.runtime_status);
+  const sessionState = useSessionStore((s) => s.sessionState);
   const setSessionState = useSessionStore((s) => s.setSessionState);
+  const { addMessage, setStreaming, appendStreamContent, finalizeStreamingMessage, isStreaming } = useChatStore();
 
-  if (!runtimeStatus) return null;
+  const runtimeStatus = sessionState?.runtime_status;
+  if (!runtimeStatus || !sessionState) return null;
 
   const commands = COMMANDS_BY_STATUS[runtimeStatus] || [];
-
-  if (commands.length === 0) {
-    // Always show report option when there are answers
-    if (runtimeStatus === 'DONE' || runtimeStatus === 'REPORT_GENERATION') {
-      // Handled above
-    }
-    return null;
-  }
+  if (commands.length === 0) return null;
 
   const handleCommand = async (cmd: string) => {
-    if (!sessionId) return;
+    if (isStreaming) return;
+    addMessage({
+      id: generateId(),
+      role: 'user',
+      content: `/${cmd}`,
+      timestamp: new Date().toISOString(),
+    });
+    setStreaming(true);
     try {
-      const res = await api.post(`/session/${sessionId}/${cmd}`) as { session_state?: Record<string, unknown> };
-      if (res.session_state) {
-        setSessionState(res.session_state as unknown as Parameters<typeof setSessionState>[0]);
-      }
-      toast(`命令 "${cmd}" 已执行`, 'success');
-    } catch (err: unknown) {
-      toast(`执行失败: ${err instanceof Error ? err.message : '未知错误'}`, 'error');
+      await streamChat(sessionState, `/${cmd}`, {
+        onTextDelta: (text) => appendStreamContent(text),
+        onToolCall: () => {},
+        onToolResult: (_, result) => {
+          if (result.session_state) setSessionState({ ...result.session_state });
+        },
+        onError: () => {},
+        onDone: (finalState) => {
+          finalizeStreamingMessage(generateId());
+          setStreaming(false);
+          setSessionState({ ...finalState });
+        },
+      });
+    } catch {
+      setStreaming(false);
     }
   };
 
