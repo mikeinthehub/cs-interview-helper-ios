@@ -25,6 +25,10 @@ jobs:
           npm install
           npm run build
 
+      - name: Add iOS Platform
+        working-directory: frontend
+        run: npx cap add ios
+
       - name: Sync Capacitor
         working-directory: frontend
         run: npx cap sync ios
