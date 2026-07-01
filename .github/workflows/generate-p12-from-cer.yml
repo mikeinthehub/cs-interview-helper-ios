@@ -1,0 +1,114 @@
+name: Generate P12 from CER
+
+# 拿到 Apple 签发的 .cer 文件后，用这个 workflow 生成 .p12
+
+on:
+  workflow_dispatch:
+    inputs:
+      cert_password:
+        description: '证书密码（和上一步一致）'
+        required: true
+        type: string
+        default: 'csinterview123'
+
+jobs:
+  generate:
+    runs-on: macos-15
+    timeout-minutes: 10
+
+    steps:
+      - name: Download Key Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: 2-私钥-请妥善保管勿分享
+          path: keys
+
+      - name: Instructions (upload CER)
+        run: |
+          echo ""
+          echo "========================================="
+          echo "  请手动上传 Apple 签发的 .cer 文件"
+          echo "========================================="
+          echo ""
+          echo "操作步骤："
+          echo "1. 在 GitHub 网页上，点击下方 Add file → Upload files"
+          echo "2. 上传 Apple Developer 下载的 .cer 文件"
+          echo "3. 记下文件名（例如 ios_dev.cer）"
+          echo "4. 用 git 提交，或者直接在网页上 commit"
+          echo ""
+          echo "如果 .cer 文件已在仓库根目录，请继续往下"
+          echo ""
+          ls -la *.cer 2>/dev/null || echo "（尚未检测到 .cer 文件，请先上传）"
+
+      - name: Generate P12 from CER + Key
+        run: |
+          CER_FILE=$(ls *.cer 2>/dev/null | head -1)
+          if [ -z "$CER_FILE" ]; then
+            echo "未找到 .cer 文件！"
+            echo "请先把 Apple Developer 下载的 .cer 上传到仓库根目录"
+            echo ""
+            echo "方法1：在 GitHub 网页上 Add file → Upload files → 上传 .cer → Commit"
+            echo "方法2：git add ios_dev.cer && git commit && git push"
+            exit 1
+          fi
+
+          echo "Found CER: $CER_FILE"
+
+          # Convert CER to PEM
+          openssl x509 -in "$CER_FILE" -inform DER -out ios_dev.pem -outform PEM
+
+          # Generate P12
+          openssl pkcs12 -export \
+            -inkey keys/ios_dev.key \
+            -in ios_dev.pem \
+            -out ios_dev.p12 \
+            -passout pass:${{ inputs.cert_password }}
+
+          # Base64 encode for GitHub Secrets
+          openssl base64 -in ios_dev.p12 -out ios_dev.p12.base64
+          echo "P12 generated successfully!"
+
+          # Show certificate info
+          echo ""
+          echo "===== 证书信息 ====="
+          openssl pkcs12 -in ios_dev.p12 -passin pass:${{ inputs.cert_password }} -nokeys -clcerts 2>/dev/null | \
+            openssl x509 -noout -subject -dates 2>/dev/null
+          echo ""
+          echo "===== CODE_SIGN_IDENTITY ====="
+          openssl pkcs12 -in ios_dev.p12 -passin pass:${{ inputs.cert_password }} -nokeys -clcerts 2>/dev/null | \
+            openssl x509 -noout -subject 2>/dev/null | sed 's/subject= //' | sed 's/^/iPhone Developer: /'
+
+      - name: Upload P12 (base64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3-P12证书-用于GitHub-Secrets
+          path: ios_dev.p12.base64
+          retention-days: 1
+
+      - name: Upload P12 (raw)
+        uses: actions/upload-artifact@v4
+        with:
+          name: 4-P12证书-用于安装到电脑
+          path: ios_dev.p12
+          retention-days: 1
+
+      - name: Final Instructions
+        run: |
+          echo ""
+          echo "========================================="
+          echo "  证书链生成完毕！"
+          echo "========================================="
+          echo ""
+          echo "下载以下 Artifact："
+          echo ""
+          echo "  '3-P12证书-用于GitHub-Secrets'"
+          echo "    → 里面包含 ios_dev.p12.base64"
+          echo "    → 内容直接复制，存入 GitHub Secrets:"
+          echo "      IOS_DEVELOPMENT_CERT_BASE64"
+          echo ""
+          echo "  '4-P12证书-用于安装到电脑'"
+          echo "    → 里面是 ios_dev.p12 原始文件"
+          echo "    → 保存好，这是你的签名证书"
+          echo ""
+          echo "Secrets 设置完后，就可以触发 Build iOS IPA workflow 了！"
+          echo ""
