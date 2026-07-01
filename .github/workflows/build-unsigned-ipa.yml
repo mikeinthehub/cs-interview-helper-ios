@@ -1,0 +1,71 @@
+name: Build Unsigned IPA
+
+# 无签名 IPA —— 用爱思助手签名后安装
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install Capacitor CLI
+        working-directory: frontend
+        run: npm install @capacitor/cli @capacitor/core @capacitor/ios
+
+      - name: Sync Capacitor
+        working-directory: frontend
+        run: npx cap sync ios
+
+      - name: Set Build Number
+        run: |
+          BUILD_NUM=$(date +%Y%m%d%H%M)
+          echo "BUILD_NUMBER=$BUILD_NUM" >> $GITHUB_ENV
+
+      - name: Build Unsigned Archive
+        working-directory: frontend/ios/App
+        run: |
+          xcodebuild archive \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath ${{ runner.temp }}/App.xcarchive \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CURRENT_PROJECT_VERSION=${{ env.BUILD_NUMBER }}
+
+      - name: Create Unsigned IPA
+        run: |
+          mkdir -p ${{ runner.temp }}/export/Payload
+          cp -R ${{ runner.temp }}/App.xcarchive/Products/Applications/App.app ${{ runner.temp }}/export/Payload/
+          cd ${{ runner.temp }}/export
+          zip -r ../App-unsigned.ipa Payload/
+          echo "IPA created at ${{ runner.temp }}/App-unsigned.ipa"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: CS面试助手-unsigned-${{ env.BUILD_NUMBER }}
+          path: ${{ runner.temp }}/App-unsigned.ipa
+          retention-days: 30
