@@ -4,7 +4,7 @@
  * and produces a question plan for the session.
  */
 
-import { loadData } from './dataLoader';
+import { getFundamentalQuestions, getAlgorithmQuestions, getModeProfiles } from './dataLoader';
 import type { SessionConfig, CurrentQuestion } from '../types/session';
 
 interface FundamentalQuestion {
@@ -209,11 +209,10 @@ export async function selectQuestions(
   profileText = '',
   jdText = '',
 ): Promise<Record<string, CurrentQuestion[]>> {
-  const [fundamentalsRaw, algorithmsRaw, modeProfilesRaw] = await Promise.all([
-    loadData<{ questions: FundamentalQuestion[] }>('fundamental_questions.json'),
-    loadData<{ questions: AlgorithmQuestion[] }>('algorithm_questions.json'),
-    loadData<{ profiles: Record<string, ModeProfile> }>('interview_mode_profiles.json'),
-  ]);
+  // Static imports — bundled at build time, works on iOS WKWebView
+  const fundamentalsRaw = getFundamentalQuestions() as { questions: FundamentalQuestion[] };
+  const algorithmsRaw = getAlgorithmQuestions() as { questions: AlgorithmQuestion[] };
+  const modeProfilesRaw = getModeProfiles() as { profiles: Record<string, ModeProfile> };
   const fundamentals = fundamentalsRaw.questions || (fundamentalsRaw as unknown as FundamentalQuestion[]);
   const algorithms = algorithmsRaw.questions || (algorithmsRaw as unknown as AlgorithmQuestion[]);
   const modeProfiles = modeProfilesRaw.profiles || (modeProfilesRaw as unknown as Record<string, ModeProfile>);
