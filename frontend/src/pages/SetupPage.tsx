@@ -74,10 +74,7 @@ export function SetupPage() {
   const handleCreateSession = async () => {
     setLoading(true);
     try {
-      // 1. Create local session
       const state = createSession('interview');
-
-      // 2. Configure
       const configured = configureSession(state, {
         role: selectedRole || undefined,
         mode: selectedMode,
@@ -87,20 +84,29 @@ export function SetupPage() {
         focus: selectedFocus.length > 0 ? selectedFocus : undefined,
         jd_text: jdText || undefined,
       });
-
-      // 3. Generate question plan (stored by LLM at interview_start)
-      await selectQuestions(configured.config);
-
-      // 4. Save
-      await saveSession(configured);
-
+      try {
+        const plan = await selectQuestions(configured.config);
+        // Store plan in session for the LLM to use
+        configured.question_plan = plan;
+        console.log('Question plan generated:', Object.keys(plan).map(k => `${k}:${(plan[k] as unknown[]).length}`).join(', '));
+      } catch (e) {
+        console.error('selectQuestions failed:', e);
+        throw new Error(`题库加载失败: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      try {
+        await saveSession(configured);
+      } catch (e) {
+        console.error('saveSession failed:', e);
+        throw new Error(`会话保存失败: ${e instanceof Error ? e.message : String(e)}`);
+      }
       setSession(configured.session_id, '');
       setSessionState(configured as Parameters<typeof setSessionState>[0]);
-
       toast('面试配置完成!', 'success');
       navigate('/interview');
     } catch (err: unknown) {
-      toast(`创建失败: ${err instanceof Error ? err.message : '未知错误'}`, 'error');
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('handleCreateSession error:', msg, err);
+      toast(`创建失败: ${msg}`, 'error');
     } finally {
       setLoading(false);
     }
