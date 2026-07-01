@@ -336,6 +336,49 @@ export async function streamChat(
       }
     }
 
+    // Auto-judge: if the LLM didn't call apply_answer_judgement, force it
+    const isCommand = userMessage.startsWith('/') || /^(开始|暂停|继续|跳过|提示|重复|解释|评分|报告)/.test(userMessage);
+    const hasQuestion = !!currentState.current_question;
+    if (!isCommand && hasQuestion && !pendingToolCalls.length) {
+      // Advance state with default judgement
+      currentState = recordAnswer(currentState, 'partial', 3, userMessage.slice(0, 100), '');
+      await saveSession(currentState);
+
+      // Tell LLM to ask the next question
+      if (currentState.current_question) {
+        const ctx = buildStateContext(currentState);
+        messages.push({ role: 'user', content: `[State updated. Ask the next question.]\n${ctx}` });
+        // Re-call API for the next question
+        const resp2 = await fetch(`${API_BASE}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model: MODEL, max_tokens: 2048, system: [{ type: 'text', text: getSkillMd() }], messages, tools: TOOLS, stream: true }),
+        });
+        if (resp2.ok) {
+          const reader2 = resp2.body?.getReader();
+          if (reader2) {
+            let buf2 = '';
+            while (true) {
+              const { done, value } = await reader2.read();
+              if (done) break;
+              buf2 += new TextDecoder().decode(value, { stream: true });
+              for (const l of buf2.split('\n')) {
+                if (l.startsWith('data: ') && l.slice(6) !== '[DONE]') {
+                  try {
+                    const evt = JSON.parse(l.slice(6));
+                    if (evt.type === 'content_block_delta' && evt.delta?.text) {
+                      events.onTextDelta(evt.delta.text);
+                    }
+                  } catch { /* skip */ }
+                }
+              }
+              buf2 = buf2.split('\n').pop() || '';
+            }
+          }
+        }
+      }
+    }
+
     // Final save
     await saveSession(currentState);
     events.onDone(currentState);
