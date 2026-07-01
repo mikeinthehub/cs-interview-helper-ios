@@ -119,7 +119,13 @@ function buildStateContext(state: SessionState): string {
     `stage_status=${JSON.stringify(stage_status || {})}`,
     `config: mode=${config.mode}, strength=${config.strength}, tone=${config.tone}, level=${config.level}, role=${config.role || 'auto'}, focus=[${(config.focus || []).join(', ')}]`,
     config.jd_text ? `JD: ${config.jd_text.slice(0, 500)}` : '',
+    state.question_plan && Object.keys(state.question_plan).length > 0
+      ? `Question Plan: ${JSON.stringify(Object.fromEntries(Object.entries(state.question_plan).map(([k, v]) => [k, (v as unknown[]).length + ' questions'])))}`
+      : '',
     current_question ? `Current: "${current_question.question_text}" [stage=${current_question.stage}, hint_level=${current_question.hint_level || 0}]` : 'No current question',
+    active_stage && state.question_plan?.[active_stage]
+      ? `Questions for ${active_stage}:\n${(state.question_plan[active_stage] as unknown[]).map((q: unknown, i: number) => `${i+1}. ${(q as Record<string,unknown>).question_id}: ${(q as Record<string,unknown>).question_text}`).join('\n')}`
+      : '',
     `Progress: completed=${(progress.completed_question_ids || []).length}, hints=${progress.hints_used_total || 0}, skipped=${progress.skipped_total || 0}`,
     '---',
     'You are a CS Technical Interviewer. Follow SKILL.md rules strictly. Use Chinese. Ask ONE question at a time. After each answer call apply_answer_judgement then proceed.',
