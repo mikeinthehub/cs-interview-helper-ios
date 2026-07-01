@@ -17,19 +17,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Install Frontend Dependencies
+      - name: Install & Build Frontend
         working-directory: frontend
-        run: npm install
-
-      - name: Build Frontend
-        working-directory: frontend
-        run: npm run build
-
-      - name: Install Capacitor CLI
-        working-directory: frontend
-        run: npm install @capacitor/cli @capacitor/core @capacitor/ios
+        run: |
+          npm install
+          npm run build
 
       - name: Sync Capacitor
         working-directory: frontend
