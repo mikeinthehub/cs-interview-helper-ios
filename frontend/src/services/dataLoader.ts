@@ -1,37 +1,58 @@
-/** Load bundled JSON/MD data files from /assets/data/ */
+/**
+ * Load bundled JSON/MD data files via Vite static imports.
+ * iOS WKWebView blocks fetch() for local files, so we bundle at build time.
+ */
 
-const cache = new Map<string, unknown>();
+// Static imports — Vite bundles these into the JS at build time
+import skillMd from '../../public/assets/data/SKILL.md?raw';
+import fundamentalQuestionsRaw from '../../public/assets/data/fundamental_questions.json';
+import algorithmQuestionsRaw from '../../public/assets/data/algorithm_questions.json';
+import modeProfilesRaw from '../../public/assets/data/interview_mode_profiles.json';
+import roleProfilesRaw from '../../public/assets/data/role_profiles.json';
 
+// Cache
+let _skillMd = '';
+let _fundamentalQuestions: unknown = null;
+let _algorithmQuestions: unknown = null;
+let _modeProfiles: unknown = null;
+let _roleProfiles: unknown = null;
+
+export function getSkillMd(): string {
+  if (!_skillMd) _skillMd = skillMd;
+  return _skillMd;
+}
+
+export function getFundamentalQuestions(): unknown {
+  if (!_fundamentalQuestions) _fundamentalQuestions = fundamentalQuestionsRaw;
+  return _fundamentalQuestions;
+}
+
+export function getAlgorithmQuestions(): unknown {
+  if (!_algorithmQuestions) _algorithmQuestions = algorithmQuestionsRaw;
+  return _algorithmQuestions;
+}
+
+export function getModeProfiles(): unknown {
+  if (!_modeProfiles) _modeProfiles = modeProfilesRaw;
+  return _modeProfiles;
+}
+
+export function getRoleProfiles(): unknown {
+  if (!_roleProfiles) _roleProfiles = roleProfilesRaw;
+  return _roleProfiles;
+}
+
+// For backward compat
 export async function loadData<T = unknown>(filename: string): Promise<T> {
-  if (cache.has(filename)) return cache.get(filename) as T;
-  const res = await fetch(`/assets/data/${filename}`);
-  if (!res.ok) throw new Error(`Failed to load ${filename}: ${res.status}`);
-  let data: unknown;
-  if (filename.endsWith('.json')) {
-    data = await res.json();
-  } else {
-    data = await res.text();
-  }
-  cache.set(filename, data);
-  return data as T;
-}
-
-export function loadDataSync(filename: string): string {
-  // Fallback: use synchronous XMLHttpRequest (only for bundled assets)
-  const xhr = new XMLHttpRequest();
-  xhr.open('GET', `/assets/data/${filename}`, false);
-  xhr.send();
-  if (xhr.status !== 200) throw new Error(`Failed to load ${filename}`);
-  return xhr.responseText;
-}
-
-// Pre-load all critical data
-export async function preloadData(): Promise<void> {
-  await Promise.all([
-    loadData('SKILL.md'),
-    loadData('fundamental_questions.json'),
-    loadData('algorithm_questions.json'),
-    loadData('interview_mode_profiles.json'),
-    loadData('role_profiles.json'),
-  ]);
+  // Route to static imports
+  const staticMap: Record<string, () => unknown> = {
+    'SKILL.md': getSkillMd,
+    'fundamental_questions.json': getFundamentalQuestions,
+    'algorithm_questions.json': getAlgorithmQuestions,
+    'interview_mode_profiles.json': getModeProfiles,
+    'role_profiles.json': getRoleProfiles,
+  };
+  const fn = staticMap[filename];
+  if (fn) return fn() as T;
+  throw new Error(`Unknown data file: ${filename}. Add it to dataLoader.ts static imports.`);
 }
