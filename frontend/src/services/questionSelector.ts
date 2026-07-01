@@ -209,11 +209,14 @@ export async function selectQuestions(
   profileText = '',
   jdText = '',
 ): Promise<Record<string, CurrentQuestion[]>> {
-  const [fundamentals, algorithms, modeProfiles] = await Promise.all([
-    loadData<FundamentalQuestion[]>('fundamental_questions.json'),
-    loadData<AlgorithmQuestion[]>('algorithm_questions.json'),
-    loadData<Record<string, ModeProfile>>('interview_mode_profiles.json'),
+  const [fundamentalsRaw, algorithmsRaw, modeProfilesRaw] = await Promise.all([
+    loadData<{ questions: FundamentalQuestion[] }>('fundamental_questions.json'),
+    loadData<{ questions: AlgorithmQuestion[] }>('algorithm_questions.json'),
+    loadData<{ profiles: Record<string, ModeProfile> }>('interview_mode_profiles.json'),
   ]);
+  const fundamentals = fundamentalsRaw.questions || (fundamentalsRaw as unknown as FundamentalQuestion[]);
+  const algorithms = algorithmsRaw.questions || (algorithmsRaw as unknown as AlgorithmQuestion[]);
+  const modeProfiles = modeProfilesRaw.profiles || (modeProfilesRaw as unknown as Record<string, ModeProfile>);
 
   const knownWords = buildKnownKeywords(fundamentals, algorithms);
   const profileKeywords = extractKeywords(profileText, knownWords);
@@ -262,8 +265,10 @@ export async function selectQuestions(
     }];
   }
 
-  const modeCfgs = modeProfiles as unknown as Record<string, ModeProfile>;
-  const modeCfg = Object.values(modeCfgs).find((m: ModeProfile) => m.aliases?.includes(mode) || m.mode === mode);
+  // Look up mode config by name or alias
+  const modeCfg = modeProfiles[mode] || Object.values(modeProfiles).find(
+    (m: ModeProfile) => m.aliases?.includes(mode)
+  );
   const stageSeq = modeCfg?.stage_sequence || ['SELF_INTRO', 'PROJECT_DEEP_DIVE', 'CS_FUNDAMENTALS', 'CODING_INTERVIEW', 'CANDIDATE_QUESTIONS'];
 
   for (const stage of stageSeq) {
