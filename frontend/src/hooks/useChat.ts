@@ -1,13 +1,14 @@
 import { useCallback, useRef } from 'react';
 import { useSessionStore } from '../store/sessionStore';
 import { useChatStore } from '../store/chatStore';
-import { api } from '../api/client';
+import { streamChat } from '../services/chatService';
 import { generateId } from '../utils/formatters';
+import type { SessionState } from '../types/session';
 
 export function useChat() {
-  const sessionId = useSessionStore((s) => s.sessionId);
+  const sessionState = useSessionStore((s) => s.sessionState);
   const setSessionState = useSessionStore((s) => s.setSessionState);
-  const aborterRef = useRef<AbortController | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const {
     messages, isStreaming, streamingContent,
@@ -16,8 +17,8 @@ export function useChat() {
   } = useChatStore();
 
   const sendMessage = useCallback(
-    (content: string) => {
-      if (!sessionId || !content.trim() || isStreaming) return;
+    async (content: string) => {
+      if (!sessionState || !content.trim() || isStreaming) return;
 
       const userMsgId = generateId();
       addMessage({
@@ -29,49 +30,48 @@ export function useChat() {
 
       setStreaming(true);
 
-      aborterRef.current = api.streamChat(
-        sessionId,
-        content.trim(),
-        (evt) => {
-          if (evt.type === 'text_delta') {
-            appendStreamContent(evt.content as string);
-          } else if (evt.type === 'tool_use_start') {
-            // Tool calls in background — we don't interrupt streaming
-          } else if (evt.type === 'tool_result') {
-            // Tool executed
-          } else if (evt.type === 'message_done') {
-            if (evt.session_state) {
-              setSessionState(evt.session_state as Parameters<typeof setSessionState>[0]);
+      try {
+        await streamChat(sessionState, content.trim(), {
+          onTextDelta: (text) => {
+            appendStreamContent(text);
+          },
+          onToolCall: (_name) => {
+            // Tool execution in background
+          },
+          onToolResult: (_name, result) => {
+            if (result.session_state) {
+              setSessionState({ ...result.session_state } as SessionState);
             }
-          } else if (evt.type === 'error') {
+          },
+          onError: (err) => {
             addMessage({
               id: generateId(),
               role: 'system',
-              content: `❌ ${evt.error || '未知错误'}`,
+              content: `❌ ${err}`,
               timestamp: new Date().toISOString(),
             });
-          }
-        },
-        () => {
-          finalizeStreamingMessage(generateId());
-          setStreaming(false);
-        },
-        (err) => {
-          addMessage({
-            id: generateId(),
-            role: 'system',
-            content: `❌ 连接错误: ${err}`,
-            timestamp: new Date().toISOString(),
-          });
-          setStreaming(false);
-        }
-      );
+          },
+          onDone: (finalState) => {
+            finalizeStreamingMessage(generateId());
+            setStreaming(false);
+            setSessionState({ ...finalState } as SessionState);
+          },
+        });
+      } catch (err: unknown) {
+        addMessage({
+          id: generateId(),
+          role: 'system',
+          content: `❌ 连接错误: ${err instanceof Error ? err.message : 'Unknown'}`,
+          timestamp: new Date().toISOString(),
+        });
+        setStreaming(false);
+      }
     },
-    [sessionId, isStreaming, addMessage, setStreaming, appendStreamContent, finalizeStreamingMessage, setSessionState]
+    [sessionState, isStreaming, addMessage, setStreaming, appendStreamContent, finalizeStreamingMessage, setSessionState]
   );
 
   const cancelStream = useCallback(() => {
-    aborterRef.current?.abort();
+    abortRef.current?.abort();
     setStreaming(false);
   }, [setStreaming]);
 
