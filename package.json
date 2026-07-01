@@ -1,0 +1,18 @@
+{
+  "name": "cs-interview-helper-ios",
+  "version": "1.0.0",
+  "description": "CS 技术面试助手 - iOS 版本",
+  "scripts": {
+    "build": "cd frontend && npm run build",
+    "preview": "python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000",
+    "cap:init": "cd frontend && npx cap init 'CS面试助手' 'com.csinterview.helper' --web-dir=../backend/static",
+    "cap:add-ios": "cd frontend && npx cap add ios",
+    "cap:sync": "cd frontend && npx cap sync ios",
+    "cap:open": "cd frontend && npx cap open ios"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0"
+  }
+}
